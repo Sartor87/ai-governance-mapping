@@ -1,56 +1,158 @@
 # AI Governance Mapping
 
-> One **unified controls catalog** that crosswalks four AI governance frameworks —
+> One **unified controls catalog** crosswalking four AI governance frameworks —
 > **NIST AI RMF 1.0** (+ Generative AI Profile), the **EU AI Act**, the **OWASP
 > LLM Top 10 (2025)**, and **ISO/IEC 42001:2023** — plus Open Policy Agent
 > policies, documentation templates, and a CLI that produces a compliance **gap
 > report** for a project.
 
-<!-- Badges placeholder: CI, license -->
+<!-- Badges placeholder: CI · license -->
 
 ---
 
+## Contents
+
+- [Why this exists](#why-this-exists)
+- [What's inside](#whats-inside)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Project config format](#project-config-format)
+- [Policy-as-code (OPA / conftest)](#policy-as-code-opa--conftest)
+- [Frameworks covered](#frameworks-covered)
+- [Project layout](#project-layout)
+- [Testing](#testing)
+- [Scope & disclaimer](#scope--disclaimer)
+
 ## Why this exists
 
-Enterprise AI teams don't comply with one framework — they comply with several at
-once, and the controls overlap heavily. Maintaining four separate checklists is
-wasteful and drifts out of sync. This repo collapses them into **one catalog of
-controls**, each mapped back to every framework, with concrete implementation
-guidance, tooling, and the evidence an auditor expects.
+Enterprise AI teams comply with several frameworks at once, and the controls
+overlap heavily. Four separate checklists is wasteful and drifts out of sync.
+This repo collapses them into **one catalog of controls**, each mapped back to
+every framework with implementation guidance, tooling, and the evidence an
+auditor expects — then gives you code to check a project against it.
 
-The catalog itself is the artifact: [`controls/unified_controls.csv`](controls/unified_controls.csv).
+The catalog itself is the artifact:
+[`controls/unified_controls.csv`](controls/unified_controls.csv) (16 controls × 9 columns).
+
+> **Runtime companion:** this repo is the *paperwork*. The
+> [AI Governance Toolkit](https://github.com/jeanmalaquias/ai-governance-toolkit)
+> is the *code that enforces and evidences* these controls at runtime.
 
 ## What's inside
 
 | Path | What |
 |------|------|
-| [`controls/unified_controls.csv`](controls/unified_controls.csv) | The master crosswalk — one row per control, mapped to all four frameworks |
-| [`docs/`](docs/) | Per-framework explainers that crosswalk back to control IDs, with source citations |
-| [`controls/policies/`](controls/policies/) | Open Policy Agent (Rego) policies enforcing the machine-checkable controls |
+| [`controls/unified_controls.csv`](controls/unified_controls.csv) | Master crosswalk — one control per row, mapped to all four frameworks |
+| [`docs/`](docs/) | Per-framework explainers crosswalking back to control IDs, with source citations |
+| [`controls/policies/`](controls/policies/) | OPA (Rego) policies enforcing the machine-checkable controls |
 | [`templates/`](templates/) | Model card, risk assessment, and audit-log schema templates |
-| [`tools/compliance_check.py`](tools/compliance_check.py) | CLI: takes a project config, reports satisfied vs. missing controls, exits non-zero on gaps |
+| [`src/aigov/`](src/aigov/) + [`tools/compliance_check.py`](tools/compliance_check.py) | The `compliance-check` CLI |
+| [`articles/`](articles/) | Deep-dive article drafts (generic methodology) |
 
-## Quick start
+## Prerequisites
+
+- **Python 3.12+** for the CLI.
+- Optional: [**conftest**](https://www.conftest.dev) (embeds Open Policy Agent)
+  to run the Rego policies.
+
+## Installation
 
 ```bash
-pip install -e .
-# Score a project's declared controls against the catalog:
+git clone https://github.com/jeanmalaquias/ai-governance-mapping.git
+cd ai-governance-mapping
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+```
+
+## Usage
+
+Check a project's declared controls against the catalog:
+
+```bash
 compliance-check examples/sample_project.yaml
 ```
 
-The check reads which controls a project claims to satisfy (with evidence),
-compares against the catalog, and prints a gap report — green when every
-applicable control has evidence, non-zero exit when gaps remain (CI-gateable).
+Expected output (the bundled example satisfies/waives every control):
+
+```
+# Compliance gap report — Sample RAG Service
+
+satisfied: 15  waived: 1  gaps: 0
+
+| control | state | detail |
+| --- | --- | --- |
+| AIGOV-001 AI risk assessment before deployment | satisfied | docs/risk_assessment-2026-06.md |
+| ...
+No gaps. All applicable controls satisfied or waived.
+```
+
+The command exits **non-zero when gaps remain**, so it drops into CI as a gate.
+Point it at your own project file, or override the catalog with `--catalog`.
+
+## Project config format
+
+A project declares how it addresses each control (YAML):
+
+```yaml
+name: My Service
+controls:
+  AIGOV-003: { status: satisfied, evidence: "AWS KMS envelope encryption" }
+  AIGOV-016: { status: not_applicable, reason: "no decisions about individuals" }
+  # any catalog control you omit is reported as a gap
+```
+
+- `status: satisfied` **requires** an `evidence` string, else it's a gap.
+- `status: not_applicable` **requires** a `reason`, else it's a gap.
+- Omitted controls are gaps ("not addressed").
+
+## Policy-as-code (OPA / conftest)
+
+The machine-checkable controls are enforced as Rego:
+
+```bash
+conftest test examples/sample_input.json -p controls/policies
+```
+
+`governance.rego` denies when a required control (encryption, input/output
+moderation, audit logging, access control, rate limiting) is neither satisfied
+nor explicitly waived, or is satisfied without evidence. Wire it into CI to
+block deploys.
 
 ## Frameworks covered
 
-- **NIST AI RMF 1.0** (Jan 2023) and the **Generative AI Profile** (NIST-AI-600-1, Jul 2024) — functions GOVERN / MAP / MEASURE / MANAGE.
+- **NIST AI RMF 1.0** (Jan 2023) + **Generative AI Profile** (NIST-AI-600-1).
 - **EU AI Act** — Regulation (EU) 2024/1689, high-risk obligations (Arts. 9–15, 72).
 - **OWASP Top 10 for LLM Applications (2025)** — LLM01–LLM10.
 - **ISO/IEC 42001:2023** — AI management system, Annex A controls.
 
-> Citation discipline: every framework reference in [`docs/`](docs/) links to its
-> source. Mappings are interpretive aids, not legal advice.
+## Project layout
+
+```
+controls/
+├── unified_controls.csv     # the master crosswalk
+└── policies/governance.rego # OPA policy-as-code
+docs/                        # per-framework crosswalk explainers (cited)
+templates/                   # model_card.md, risk_assessment.md, audit_log_schema.json
+src/aigov/                   # catalog loader + gap-check engine + CLI
+tools/compliance_check.py    # thin entry point (= compliance-check)
+examples/                    # sample_project.yaml + sample_input.json
+articles/                    # deep-dive drafts
+```
+
+## Testing
+
+```bash
+pytest --cov --cov-report=term-missing   # 7 tests, 100% source coverage
+ruff check .
+compliance-check examples/sample_project.yaml   # the example must pass (exit 0)
+```
+
+## Scope & disclaimer
+
+Mappings are **interpretive aids, not legal advice**. Every framework reference
+in [`docs/`](docs/) links to its primary source; classify your own system and
+verify obligations against the regulations before relying on them.
 
 ## License
 
