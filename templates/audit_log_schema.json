@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AI Interaction Audit Log Entry",
+  "description": "Satisfies AIGOV-009 - EU AI Act Art. 12 - ISO 42001 A.6.2.8. No PII in plaintext; reference by pseudonymous id.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "timestamp", "tenant_id", "actor", "action", "model"],
+  "properties": {
+    "event_id": { "type": "string", "description": "Unique, tamper-evident id (e.g. ULID)." },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "tenant_id": { "type": "string" },
+    "actor": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "type": "string", "enum": ["user", "service", "agent"] },
+        "id": { "type": "string", "description": "Pseudonymous subject reference, not raw PII." }
+      }
+    },
+    "action": { "type": "string", "enum": ["inference", "tool_call", "human_override", "config_change"] },
+    "model": { "type": "string", "description": "Provider/model id and version." },
+    "input_digest": { "type": "string", "description": "Hash of the input; raw prompt stored separately under access control." },
+    "output_digest": { "type": "string" },
+    "guardrail": {
+      "type": "object",
+      "properties": {
+        "input_verdict": { "type": "string", "enum": ["allow", "block"] },
+        "output_verdict": { "type": "string", "enum": ["allow", "block"] },
+        "categories": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "human_review": {
+      "type": "object",
+      "properties": {
+        "reviewed": { "type": "boolean" },
+        "reviewer_id": { "type": "string" },
+        "decision": { "type": "string", "enum": ["approved", "overridden", "rejected"] }
+      }
+    },
+    "usage": {
+      "type": "object",
+      "properties": {
+        "prompt_tokens": { "type": "integer" },
+        "completion_tokens": { "type": "integer" },
+        "cost_usd": { "type": "number" }
+      }
+    }
+  }
+}
