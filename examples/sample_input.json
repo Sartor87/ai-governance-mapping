@@ -1,0 +1,10 @@
+{
+  "controls": {
+    "AIGOV-003": { "status": "satisfied", "evidence": "AWS KMS envelope encryption" },
+    "AIGOV-006": { "status": "satisfied", "evidence": "Llama Guard 3 pre-call moderation" },
+    "AIGOV-007": { "status": "satisfied", "evidence": "output moderation + schema validation" },
+    "AIGOV-009": { "status": "satisfied", "evidence": "OpenTelemetry audit log" },
+    "AIGOV-010": { "status": "satisfied", "evidence": "per-tenant IAM + OPA" },
+    "AIGOV-015": { "status": "satisfied", "evidence": "API gateway rate limits" }
+  }
+}
