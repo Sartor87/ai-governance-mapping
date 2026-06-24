@@ -37,6 +37,18 @@ def test_load_catalog_defaults_missing_columns(tmp_path):
     assert controls[0].risk_tiers == ["high", "limited", "minimal"]
 
 
+def test_load_catalog_skips_blank_id_rows(tmp_path):
+    csv_path = tmp_path / "with_blank_id.csv"
+    csv_path.write_text(
+        "ID,Control\nAIGOV-001,Risk assessment\n,Empty ID control\n",
+        encoding="utf-8",
+    )
+    controls = load_catalog(csv_path)
+    assert len(controls) == 1
+    assert controls[0].id == "AIGOV-001"
+    assert controls[0].control == "Risk assessment"
+
+
 def _catalog():
     return [
         Control(id="AIGOV-001", control="Risk assessment"),
