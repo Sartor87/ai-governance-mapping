@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
 from .check import GapReport, evaluate, load_project
 
@@ -34,7 +35,11 @@ def main(argv: list[str] | None = None) -> int:
     from .catalog import load_catalog
 
     catalog = load_catalog(args.catalog) if args.catalog else None
-    report = evaluate(project, catalog)
+    try:
+        report = evaluate(project, catalog)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 2
     print(render(report))
     if report.has_gaps:
         print(f"\n{len(report.gaps)} gap(s) remain.")

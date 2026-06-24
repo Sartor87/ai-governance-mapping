@@ -1,3 +1,5 @@
+import pytest
+
 from aigov import cli
 from aigov.catalog import Control, load_catalog
 from aigov.check import ControlResult, GapReport, evaluate, load_project
@@ -169,6 +171,19 @@ def test_evaluate_defaults_risk_tier_to_high():
     report = evaluate(project, catalog, catalog_version="9.9.9")
     # high is in scope by default, undeclared -> gap
     assert report.results[0].state == "gap"
+
+
+def test_evaluate_rejects_unknown_risk_tier():
+    catalog = [Control(id="AIGOV-001", control="Risk assessment", risk_tiers=["high"])]
+    project = {"risk_tier": "bogus", "controls": {}}
+    with pytest.raises(ValueError):
+        evaluate(project, catalog)
+
+
+def test_cli_exits_2_on_unknown_risk_tier(tmp_path):
+    p = tmp_path / "bad_tier.yaml"
+    p.write_text("name: Bad\nrisk_tier: hgih\ncontrols: {}\n")
+    assert cli.main([str(p)]) == 2
 
 
 def test_render_shows_catalog_version():

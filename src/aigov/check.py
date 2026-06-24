@@ -9,6 +9,8 @@ from pydantic import BaseModel
 
 from .catalog import Control, load_catalog, load_catalog_version
 
+VALID_RISK_TIERS = {"high", "limited", "minimal"}
+
 
 class ControlResult(BaseModel):
     """How one catalog control fared for a project."""
@@ -79,6 +81,11 @@ def evaluate(
     version = catalog_version if catalog_version is not None else load_catalog_version()
     declared = project.get("controls", {})
     project_tier = project.get("risk_tier", "high")
+    if project_tier not in VALID_RISK_TIERS:
+        raise ValueError(
+            f"unknown risk_tier '{project_tier}'; expected one of "
+            f"{sorted(VALID_RISK_TIERS)}"
+        )
     results: list[ControlResult] = []
     for control in controls:
         state, detail = _classify(
