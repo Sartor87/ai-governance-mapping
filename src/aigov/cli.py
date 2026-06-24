@@ -11,6 +11,7 @@ def render(report: GapReport) -> str:
     counts = report.counts()
     lines = [
         f"# Compliance gap report — {report.project}",
+        f"catalog version: {report.catalog_version}",
         "",
         f"satisfied: {counts['satisfied']}  waived: {counts['waived']}  "
         f"gaps: {counts['gap']}",

@@ -1,6 +1,6 @@
 from aigov import cli
 from aigov.catalog import Control, load_catalog
-from aigov.check import evaluate, load_project
+from aigov.check import ControlResult, GapReport, evaluate, load_project
 
 
 def test_catalog_loads_all_controls():
@@ -157,3 +157,16 @@ def test_evaluate_defaults_risk_tier_to_high():
     report = evaluate(project, catalog, catalog_version="9.9.9")
     # high is in scope by default, undeclared -> gap
     assert report.results[0].state == "gap"
+
+
+def test_render_shows_catalog_version():
+    result = ControlResult(
+        id="AIGOV-001", control="X", state="satisfied", detail="d"
+    )
+    report = GapReport(
+        project="P",
+        results=[result],
+        catalog_version="1.1.0",
+    )
+    output = cli.render(report)
+    assert "catalog version: 1.1.0" in output
