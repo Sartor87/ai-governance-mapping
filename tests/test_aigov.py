@@ -12,6 +12,31 @@ def test_catalog_loads_all_controls():
     assert all(c.control for c in controls)
 
 
+def test_catalog_parses_enforced_in_ci_and_risk_tiers():
+    controls = load_catalog()
+    by_id = {c.id: c for c in controls}
+    assert by_id["AIGOV-003"].enforced_in_ci is True
+    assert by_id["AIGOV-003"].risk_tiers == ["high", "limited", "minimal"]
+    assert by_id["AIGOV-001"].enforced_in_ci is False
+    assert by_id["AIGOV-001"].risk_tiers == ["high"]
+
+
+def test_load_catalog_version_reads_repo_file():
+    from aigov.catalog import load_catalog_version
+
+    version = load_catalog_version()
+    assert version
+    assert version.count(".") == 2  # semver-ish, e.g. "1.1.0"
+
+
+def test_load_catalog_defaults_missing_columns(tmp_path):
+    csv_path = tmp_path / "minimal.csv"
+    csv_path.write_text("ID,Control\nAIGOV-001,Risk assessment\n", encoding="utf-8")
+    controls = load_catalog(csv_path)
+    assert controls[0].enforced_in_ci is False
+    assert controls[0].risk_tiers == ["high", "limited", "minimal"]
+
+
 def _catalog():
     return [
         Control(id="AIGOV-001", control="Risk assessment"),
