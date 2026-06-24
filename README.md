@@ -87,7 +87,10 @@ satisfied: 15  waived: 1  gaps: 0
 No gaps. All applicable controls satisfied or waived.
 ```
 
-The command exits **non-zero when gaps remain**, so it drops into CI as a gate.
+The command exits `0` when every control is satisfied or waived, `1` when gaps
+remain, and `2` for an invalid project config (e.g. an unrecognized
+`risk_tier`) — so it drops into CI as a gate, and a config error is
+distinguishable from a real compliance gap.
 Point it at your own project file, or override the catalog with `--catalog`.
 
 ## Project config format
