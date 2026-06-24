@@ -110,3 +110,50 @@ def test_load_project_empty(tmp_path):
     p = tmp_path / "empty.yaml"
     p.write_text("")
     assert load_project(p) == {}
+
+
+def test_evaluate_auto_waives_control_outside_declared_tier():
+    catalog = [
+        Control(id="AIGOV-001", control="Risk assessment", risk_tiers=["high"]),
+        Control(
+            id="AIGOV-003",
+            control="Encryption at rest",
+            enforced_in_ci=True,
+            risk_tiers=["high", "limited", "minimal"],
+        ),
+    ]
+    project = {
+        "name": "Minimal Svc",
+        "risk_tier": "minimal",
+        "controls": {
+            "AIGOV-003": {"status": "satisfied", "evidence": "KMS"},
+            # AIGOV-001 omitted: not in scope at risk_tier=minimal
+        },
+    }
+    report = evaluate(project, catalog, catalog_version="9.9.9")
+    by_id = {r.id: r for r in report.results}
+    assert by_id["AIGOV-001"].state == "waived"
+    assert "risk_tier=minimal" in by_id["AIGOV-001"].detail
+    assert by_id["AIGOV-003"].state == "satisfied"
+    assert report.catalog_version == "9.9.9"
+
+
+def test_explicit_declaration_overrides_tier_auto_waiver():
+    catalog = [Control(id="AIGOV-001", control="Risk assessment", risk_tiers=["high"])]
+    project = {
+        "risk_tier": "minimal",
+        "controls": {
+            "AIGOV-001": {"status": "satisfied", "evidence": "risk.md"},
+        },
+    }
+    report = evaluate(project, catalog, catalog_version="9.9.9")
+    assert report.results[0].state == "satisfied"
+    assert report.results[0].detail == "risk.md"
+
+
+def test_evaluate_defaults_risk_tier_to_high():
+    catalog = [Control(id="AIGOV-001", control="Risk assessment", risk_tiers=["high"])]
+    project = {"controls": {}}  # no risk_tier declared
+    report = evaluate(project, catalog, catalog_version="9.9.9")
+    # high is in scope by default, undeclared -> gap
+    assert report.results[0].state == "gap"
