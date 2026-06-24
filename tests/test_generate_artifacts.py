@@ -2,6 +2,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 
 import generate_artifacts as ga  # noqa: E402
@@ -32,3 +34,44 @@ def test_write_data_json(tmp_path, monkeypatch):
 
     data = json.loads(out_path.read_text(encoding="utf-8"))
     assert data == {"required_controls": ["AIGOV-003"], "catalog_version": "2.0.0"}
+
+
+def test_render_table_skips_em_dash_and_blank():
+    rows = [
+        {"ID": "AIGOV-001", "Control": "Risk assessment", "EU AI Act": "Art. 9"},
+        {"ID": "AIGOV-009", "Control": "Audit logging", "EU AI Act": "—"},
+    ]
+    table = ga.render_table(rows, "EU AI Act")
+    assert "AIGOV-001 Risk assessment | Art. 9" in table
+    assert "AIGOV-009" not in table
+
+
+def test_update_doc_replaces_only_marked_block(tmp_path, monkeypatch):
+    doc_path = tmp_path / "docs"
+    doc_path.mkdir()
+    target = doc_path / "x-mapping.md"
+    target.write_text(
+        "# Title\n\nIntro prose.\n\n"
+        "<!-- AUTOGEN:START -->\nstale\n<!-- AUTOGEN:END -->\n\nFooter prose.\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ga, "DOCS_DIR", doc_path)
+    rows = [{"ID": "AIGOV-001", "Control": "Risk assessment", "EU AI Act": "Art. 9"}]
+
+    ga.update_doc("x-mapping.md", "EU AI Act", rows)
+
+    text = target.read_text(encoding="utf-8")
+    assert "Intro prose." in text and "Footer prose." in text
+    assert "stale" not in text
+    assert "AIGOV-001 Risk assessment | Art. 9" in text
+
+
+def test_update_doc_raises_without_markers(tmp_path, monkeypatch):
+    doc_path = tmp_path / "docs"
+    doc_path.mkdir()
+    target = doc_path / "no-markers.md"
+    target.write_text("# Title\n\nNo markers here.\n", encoding="utf-8")
+    monkeypatch.setattr(ga, "DOCS_DIR", doc_path)
+
+    with pytest.raises(SystemExit):
+        ga.update_doc("no-markers.md", "EU AI Act", [])
