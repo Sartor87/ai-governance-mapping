@@ -66,6 +66,22 @@ def test_update_doc_replaces_only_marked_block(tmp_path, monkeypatch):
     assert "AIGOV-001 Risk assessment | Art. 9" in text
 
 
+def test_committed_data_json_matches_real_csv():
+    """The committed controls/policies/data.json must match what regenerating
+    from the real controls/unified_controls.csv currently produces. This is
+    also enforced in CI via `generate_artifacts.py` + `git diff --exit-code`,
+    but we want the guarantee checked by the test suite too. Read-only: must
+    not write to DATA_JSON_PATH.
+    """
+    rows = ga.load_rows()
+    version = ga.VERSION_PATH.read_text(encoding="utf-8").strip()
+    expected = ga.build_data_json(rows, version)
+
+    committed = json.loads(ga.DATA_JSON_PATH.read_text(encoding="utf-8"))
+
+    assert committed == expected
+
+
 def test_update_doc_raises_without_markers(tmp_path, monkeypatch):
     doc_path = tmp_path / "docs"
     doc_path.mkdir()

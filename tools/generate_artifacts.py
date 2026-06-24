@@ -38,14 +38,19 @@ def load_rows() -> list[dict[str, str]]:
         return [row for row in csv.DictReader(fh) if row.get("ID", "").strip()]
 
 
-def write_data_json(rows: list[dict[str, str]]) -> None:
-    version = VERSION_PATH.read_text(encoding="utf-8").strip()
+def build_data_json(rows: list[dict[str, str]], version: str) -> dict:
+    """Pure computation of the data.json payload from CSV rows + catalog version."""
     required = sorted(
         row["ID"].strip()
         for row in rows
         if row.get("Enforced in CI", "").strip().lower() == "yes"
     )
-    data = {"required_controls": required, "catalog_version": version}
+    return {"required_controls": required, "catalog_version": version}
+
+
+def write_data_json(rows: list[dict[str, str]]) -> None:
+    version = VERSION_PATH.read_text(encoding="utf-8").strip()
+    data = build_data_json(rows, version)
     DATA_JSON_PATH.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
